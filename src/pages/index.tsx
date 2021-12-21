@@ -16,18 +16,24 @@ interface Image {
   id: string;
 }
 
-interface ImageQuery {
+interface ImagesQueryResponse {
   after: string;
-  data: Array<Image>;
+  data: Image[];
 }
 
 export default function Home(): JSX.Element {
-  const getImageList = async ({ pageParam = null }): Promise<ImageQuery> => {
-    const { data } = await api.get('/api/images', {
-      params: { after: pageParam },
+  async function LoadImages({
+    pageParam = null,
+  }): Promise<ImagesQueryResponse> {
+    console.log(pageParam);
+    const { data } = await api.get('api/images', {
+      params: {
+        after: pageParam,
+      },
     });
+
     return data;
-  };
+  }
 
   const {
     data,
@@ -39,26 +45,25 @@ export default function Home(): JSX.Element {
   } = useInfiniteQuery(
     'images',
     // TODO AXIOS REQUEST WITH PARAM
-    getImageList,
-    // TODO GET AND RETURN NEXT PAGE PARAM
+    LoadImages,
     {
-      getNextPageParam: lastReq => lastReq?.after || null,
+      getNextPageParam: lastPage => lastPage?.after || null,
     }
+    // TODO GET AND RETURN NEXT PAGE PARAM
   );
 
   const formattedData = useMemo(() => {
-    return data?.pages
-      .map(item => {
-        return item.data;
-      })
-      .flat();
+    const formatted = data?.pages.flatMap(images => {
+      return images.data.flat();
+    });
+
+    return formatted;
   }, [data]);
 
   // TODO RENDER LOADING SCREEN
   if (isLoading) {
     return <Loading />;
   }
-
   // TODO RENDER ERROR SCREEN
   if (isError) {
     return <Error />;
@@ -70,12 +75,14 @@ export default function Home(): JSX.Element {
 
       <Box maxW={1120} px={20} mx="auto" my={20}>
         <CardList cards={formattedData} />
-        {hasNextPage ? (
-          <Button onClick={() => fetchNextPage()}>
+        {hasNextPage && (
+          <Button
+            type="button"
+            onClick={fetchNextPage}
+            disabled={isFetchingNextPage}
+          >
             {isFetchingNextPage ? 'Carregando...' : 'Carregar mais'}
           </Button>
-        ) : (
-          <></>
         )}
       </Box>
     </>
